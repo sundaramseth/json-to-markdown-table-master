@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html ng-app="app">
+
+<head>
+    <title>JSON to Markdown Table</title>
+    <link rel="stylesheet" type="text/css" href="dist/bundle.css">
+	<link rel="stylesheet" type="text/css" href="deps/opt/bootstrap.css" />
+</head>
+<body ng-cloak>
+	<div class="container">
+		<div class="row">
+		  <div class="col">
+			<div class="row">
+			  <div class="col">
+				<form></form>
+			  </div>
+			</div>
+		  </div>
+		</div>
+	  </div>
+    <div ng-controller="appController" ng-cloak>
+        <h1 id="page-title">JSON to Markdown Table</h1>
+        <div id="main-content">
+            <div class="section">
+            	<div class="section-header">
+            		<span>JSON</span>
+            		<button class="copy-button" ng-click="copyJson()">Copy</button>
+            	</div>
+            	<textarea
+        			ng-show="jsonInputVisible || !processed"
+                	placeholder="Enter your JSON here"
+                    id="input-json"
+                	class="json-field" 
+                	ng-model="jsonInput" 
+                	rows="5"
+                	md-select-on-focus
+                	ng-change="jsonToMarkdownTable()"
+                	ng-blur="hideJsonInput()"></textarea>               
+                <div
+                	id="formatted-json" 
+                	class="json-field" 
+                	hljs hljs-source="jsonOutput" 
+                	hljs-language="json" 
+                	ng-show="processed && !jsonInputVisible"
+                	ng-click="showJsonInput()"
+                    title="Click to edit"></div>
+            </div>
+            <div id="error-message" ng-if="error">{{error.message}}</div>
+            <div class="section" ng-if="processed">
+            	<div class="section-header">
+            		<span>Markdown Table</span>
+            		<button class="copy-button" ng-click="copyMarkdown()">Copy</button>
+            	</div>
+            	<div id="markdown-preview" class="table-preview">
+            		<div hljs hljs-source="markdownOutput" hljs-language="markdown"></div>
+            	</div>
+            	
+            </div>
+            <div class="section" ng-if="processed">
+                <div class="section-header">
+            		<span>Table Preview</span>
+            		<button class="copy-button" ng-click="copyHtml()">Copy</button>
+            	</div>
+                <div class="table-preview" ng-bind-html="htmlOutput"></div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="dist/bundle.js"></script>
+	<script type="text/javascript" src="deps/jquery.min.js"></script>
+	<script type="text/javascript" src="deps/underscore.js"></script>
+	<script type="text/javascript" src="deps/opt/jsv.js"></script>
+	<script type="text/javascript" src="lib/jsonform.js"></script>
+	<script type="text/javascript">
+		$('form').jsonForm({
+		"schema": {
+			//VARIANTS
+			"all_variant_check": {
+				"type": "string",
+				"title": "All variant integration is completed ?",
+			},
+			"variant_name": {
+			  "type": 'array',
+			  "title": 'Provide the variant name List',
+			  "required": true,
+			  "items": {
+			"type": "string",
+			"title": "Enter variant name",
+		  }
+			},
+			"numberof_variant_added": {
+			  "type": 'number',
+			  "title": 'Please specify the number of variants Added'
+			},
+			"nameof_top_variant": {
+			  "type": 'string',
+			  "title": 'Please specify the name of top variant',
+			  "description": "Enter top variant",
+			  "required": true
+			},
+			"variant_features": {
+			  "type": 'string',
+			  "title": 'Please specify the name of variants which has features',
+			  "description": "Enter variant features",
+			  "required": true
+			},
+			"variant_check": {
+			  "type": 'string',
+			  "title": 'Checked all Variants on Preview Link ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			"seating_type": {
+			  "type": 'string',
+			  "title": 'Select model seating type',
+			  "enum": [ "5 Seater", "7 Seater", "Both" ]
+			},
+			//Color
+			"color": {
+				"type": "string",
+				"title": "All Color Added ?",
+				"enum": [ "Yes", "No" ]
+			},
+			"color_number": {
+				"type": "number",
+				"title": "Please specify the number of colors Added",
+			},
+			"body_roof_material": {
+			  "type": 'string',
+			  "title": 'Body And roof Color Material Assigned ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			"checked_p_link": {
+			  "type": 'string',
+			  "title": 'Checked on Preview Link ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			"checked_all_variant": {
+			  "type": 'string',
+			  "title": 'Checked in all variants  ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			//Camera
+			"camera_angel": {
+			  "type": 'string',
+			  "title": 'Are The Camera Angle Set For:',
+			  "enum": [ "Exterior", "Interior", "BackSeat", "LastSeat", "Set for Mobile Too?" ]
+			},
+			"camera_angel_checked": {
+			  "type": 'string',
+			  "title": 'Are The Camera Angle Checked in all variants :',
+			  "enum": [ "Exterior", "Interior", "BackSeat", "LastSeat", "Checked for Mobile Too?" ]
+			},
+			"max_min_zoom": {
+			  "type": 'string',
+			  "title": 'Is Min / Max Zoom Limit Set ? ',
+			  "enum": [ "Yes", "No" ]
+			},
+		  //HOTSPOT
+		  "hotspot_set": {
+			  "type": 'string',
+			  "title": 'Are Hotspot set for :',
+			  "enum": [ "Exterior", "Interior", "BackSeat"]
+			},
+			"hotspot_size_set": {
+			  "type": 'string',
+			  "title": 'Are Hotspot Size Set :',
+			  "enum": [ "Yes", "No" ]
+			},
+			"hotspot_checked": {
+			  "type": 'string',
+			  "title": 'Are Hotspot Checked on at least one variant on preview :',
+			  "enum": [ "Yes", "No" ]
+			},
+			//ACCESSORIES
+			"accessories_app_integrated": {
+			  "type": 'string',
+			  "title": 'Are Accessories Application for the Integration :',
+			  "enum": [ "Yes", "No", "Pending"]
+			},
+			"hotspot_set_accessories": {
+			  "type": 'string',
+			  "title": 'Are Hotspot Set For All the Accessories :',
+			  "enum": [ "Yes", "No" ]
+			},
+			"checked_on_preview": {
+			  "type": 'boolean',
+			  "title": 'Checked on Preview Link:'
+			},
+			"hotspot_visible": {
+			  "type": 'string',
+			  "title": 'Should Hotspot Be visible ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			"image_accessories_add": {
+			  "type": 'string',
+			  "title": 'Any Image Accessories Hotspot Add in Current Up',
+			  "enum": [ "Yes", "No" ]
+			},
+			"list_down_hp_name": {
+			  "type": 'boolean',
+			  "title": 'Please List Down the HP Name'
+			},
+			"accessories_checked": {
+			  "type": 'string',
+			  "title": 'Accessories checked in all variants ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			//FEATURES 
+			"feature_animation": {
+			  "type": 'string',
+			  "title": 'Any feature Animation ?',
+			  "enum": [ "Yes", "No", "Pending"]
+			},
+			"hotspot_set_features": {
+			  "type": 'string',
+			  "title": 'Are Hotspot set for all the features ?',
+			  "enum": [ "Yes", "No", "Pending" ]
+			},
+			"checked_on_preview": {
+			  "type": 'string',
+			  "title": 'Checked on Preview Link ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			//MICRO INTERACTION 
+			"micro_interaction": {
+			  "type": 'string',
+			  "title": 'Are There any Micro interaction ?',
+			  "enum": [ "Yes", "No", "Pending"]
+			},
+			"toggel_door": {
+			  "type": 'string',
+			  "title": 'Toggle Door',
+			  "enum": [ "Done", "Pending", "Not Applicable", "Provide details" ]
+			},
+			"toggel_light": {
+			  "type": 'string',
+			  "title": 'Toggle Light',
+			  "enum": [ "Done", "Pending", "Not Applicable", "Provide details" ]
+			},
+			"background_change": {
+			  "type": 'string',
+			  "title": 'Background Change',
+			  "enum": [ "Done", "Pending", "Not Applicable", "Provide details" ]
+			},
+			//MESH
+			"mesh_updated": {
+				"type": "string",
+				"title": "Updates in Mesh",
+				"enum": [ "Yes", "No" ]
+			},
+			"car_name": {
+			  "type": 'string',
+			  "title": 'No other car name should be mentioned ?',
+			  "enum": [ "Yes", "No" ]
+			},
+			"mesh_compressed": {
+			  "type": 'string',
+			  "title": 'All mesh are compressed ',
+			  "enum": [ "Yes", "No" ]
+			},
+			//TEXTURES
+			"all_texture": {
+				"type": "string",
+				"title": "All the texture is power of Two",
+				"enum": [ "Yes", "No" ]
+			}
+		  },
+		  "form": [
+			{
+			  "type":"fieldset",
+			  "title":"Car Name",
+			  "items":[
+				{
+				  "type":"tabs",
+				  "id":"navtabs",
+				  "items": [
+					//VARIANTS
+					{
+					  "title":"VARIANTS",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"all_variant_check",
+						  "type":"questions",
+						  "items": [
+						{
+						  "type": "question",
+						  "title": "All variant",
+						  "activeClass": "btn-success",
+						  "optionsType": "radiobuttons",
+						  "options": [
+							{
+							  "title": "Yes",
+							  "value": "happy",
+							  "next": "q2",
+							  "htmlClass": "btn-primary"
+							},
+							{
+							  "title": "No",
+							  "value": "sad",
+							  "submit": true
+							}
+						  ]
+						},
+						  {
+							"type": "question",
+							"qid": "q2",
+							"title": "Really happy?",
+							"options": [
+							  {
+								"title": "Yes",
+								"value": "reallyhappy",
+								"submit": true
+							  },
+							  {
+								"title": "No",
+								"value": "happy",
+								"submit": true
+							  }
+							]
+						  }
+						]
+					  },
+						{
+						  "type": "array",
+						  "title":"Provide the variant name List",
+						  "items": [
+							{
+							  "type": "section",
+							  "legend": "{{idx}}. {{value}}",
+							  "items": [
+								{
+								  "key": "variant_name[]",
+								  "title": "Variant {{idx}}",
+								  "valueInLegend": true
+								}
+							  ]
+							}
+						  ]
+						},
+	
+						{  
+						  "key":"numberof_variant_added",
+						  "type":"number"
+						},
+						{  
+						  "key":"nameof_top_variant",
+						  "type":"text"
+						},
+						{  
+						  "key":"variant_features",
+						  "type":"text"
+						},
+						{  
+						  "key":"variant_check",
+						  "type":"radios"
+						},
+						{  
+						  "key":"seating_type",
+						  "type":"radios"
+						}
+					  ]
+					},
+					//COLOR
+					{
+					  "title":"COLOR",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"color",
+						  "type":"radios",
+						},
+						{  
+						  "key":"color_number",
+						  "type":"number",
+						},
+						{  
+						  "key":"body_roof_material",
+						  "type":"radios",
+						},
+						{  
+						  "key":"checked_p_link",
+						  "type":"radios",
+						},
+						{  
+						  "key":"checked_all_variant",
+						  "type":"radios",
+						}
+					  ]
+					},
+					//CAMERA
+					{
+					  "title":"CAMERA",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"camera_angel",
+						  "type":"radios",
+						},
+						{  
+						  "key":"camera_angel_checked",
+						  "type":"radios",
+						},
+						{  
+						  "key":"max_min_zoom",
+						  "type":"radios",
+						}
+					  ]
+					},
+					//HOTSPOT
+					{
+					  "title":"HOTSPOT",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"hotspot_set",
+						  "type":"radios",
+						},
+						{  
+						  "key":"hotspot_size_set",
+						  "type":"radios",
+						},
+						{  
+						  "key":"hotspot_checked",
+						  "type":"radios",
+						}
+					  ]
+					},
+					//ACCESSORIES 
+					{
+					  "title":"ACCESSORIES",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"accessories_app_integrated",
+						  "type":"radios",
+						},
+						{  
+						  "key":"hotspot_set_accessories",
+						  "type":"radios",
+						},
+						{  
+						  "key":"checked_on_preview",
+						  "inlinetitle": "Checked on Preview Link ?"
+						},
+						{  
+						  "key":"hotspot_visible",
+						  "type":"radios",
+						},
+						{  
+						  "key":"image_accessories_add",
+						  "type":"radios",
+						},
+						{  
+						  "key":"list_down_hp_name",
+						  "inlinetitle": "Please List Down the HP Name"
+						},
+						{  
+						  "key":"accessories_checked",
+						  "type":"radios",
+						}
+					  ]
+					},
+					 //FEATURES
+					 {
+					  "title":"FEATURES",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"feature_animation",
+						  "type":"radios",
+						},
+						{  
+						  "key":"hotspot_set_features",
+						  "type":"radios",
+						},
+						{  
+						  "key":"checked_on_preview",
+						  "type":"radios",
+						},
+					  ]
+					},
+					 //MICRO INTERACTION  
+					 {
+					  "title":"MICRO INTERACTION",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"micro_interaction",
+						  "type":"radios",
+						},
+						{  
+						  "key":"toggel_door",
+						  "type":"radios",
+						},
+						{  
+						  "key":"toggel_light",
+						  "type":"radios",
+						},
+						{  
+						  "key":"background_change",
+						  "type":"radios",
+						}
+					  ]
+					},
+					  //MESH
+					  {
+					  "title":"MESH",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"mesh_updated",
+						  "type":"radios",
+						},
+						{  
+						  "key":"car_name",
+						  "type":"radios",
+						},
+						{  
+						  "key":"mesh_compressed",
+						  "type":"radios",
+						}
+					  ]
+					},
+					//TEXTURES
+						 {
+					  "title":"TEXTURES",
+					  "type":"tab",
+					  "items":[
+						{  
+						  "key":"all_texture",
+						  "type":"radios",
+						}
+					  ]
+					}
+				  ]
+				}
+			  ]
+			},
+			{
+			  "type": "actions",
+			  "items": [
+				{
+				  "type": "submit",
+				  "value": "Submit"
+				}
+			  ]
+			}
+		  ],
+		  onSubmit: function (errors, values) {
+			if (errors) {
+			  $('#res').html('<p>I beg your pardon?</p>');
+			} else {
+			  var myJsonString = JSON.stringify(values);
+			  document.getElementById("input-json").value = myJsonString; //set value on myInputID
+			  console.log(myJsonString);
+			}
+		  }
+	});
+	
+	
+	  </script>
+</body>
+
+</html>
